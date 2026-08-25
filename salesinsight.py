@@ -6,6 +6,7 @@ Autor: Alex Martins
 import pandas as pd
 import numpy as np
 import random
+import re
 from datetime import datetime, timedelta
 
 
@@ -79,8 +80,68 @@ def inspecionar_dados(df):
     return df
 
 
+def limpar_dados(df):
+    """
+    Limpa e trata o DataFrame de vendas.
+    Retorna: (df_limpo, relatorio), onde relatorio e um dicionario
+    com as contagens de registros iniciais, removidos e finais.
+    """
+    df = df.copy()
+    total_inicial = len(df)
+
+    # 1. Remover espacos extras nas colunas de texto
+    colunas_texto = ["cliente", "produto", "categoria", "regiao"]
+    for col in colunas_texto:
+        df[col] = df[col].str.strip()
+
+    # 2. Converter data_venda e remover datas invalidas
+    df["data_venda"] = pd.to_datetime(df["data_venda"], errors="coerce")
+    antes_datas = len(df)
+    df = df.dropna(subset=["data_venda"])
+    removidos_datas = antes_datas - len(df)
+
+    # 3. Remover nulos nas colunas criticas
+    antes_nulos = len(df)
+    df = df.dropna(subset=["quantidade", "preco_unitario"])
+    removidos_nulos = antes_nulos - len(df)
+
+    # 4. Ajustar os tipos numericos
+    df["quantidade"] = df["quantidade"].astype(int)
+    df["preco_unitario"] = df["preco_unitario"].astype(float)
+
+    # 5. Padronizar o nome do cliente usando regex
+    df["cliente"] = df["cliente"].apply(
+        lambda s: re.sub(r"[^A-Za-z0-9_]", "", str(s).strip())
+    )
+
+    # 6. Validar o padrao Cliente_NNN e sinalizar fora do padrao
+    padrao_cliente = re.compile(r"^Cliente_\d{3}$", flags=re.IGNORECASE)
+    df["cliente_fora_padrao"] = ~df["cliente"].str.match(padrao_cliente)
+
+    # 7. Montar e imprimir o relatorio de limpeza
+    total_final = len(df)
+    relatorio = {
+        "registros_iniciais": total_inicial,
+        "removidos_datas_invalidas": removidos_datas,
+        "removidos_nulos_criticos": removidos_nulos,
+        "registros_finais": total_final,
+        "clientes_fora_do_padrao": int(df["cliente_fora_padrao"].sum())
+    }
+
+    print("\n=== RELATORIO DE LIMPEZA ===")
+    for chave, valor in relatorio.items():
+        print(f"{chave}: {valor}")
+
+    return df, relatorio
+
+
 if __name__ == "__main__":
     df_bruto = gerar_dataset_vendas()
     df_bruto.to_csv("vendas.csv", index=False)
     print(f"Dataset gerado com {len(df_bruto)} registros.")
+
     df_bruto = inspecionar_dados(df_bruto)
+
+    df_limpo, relatorio_limpeza = limpar_dados(df_bruto)
+    print("\nPrimeiros registros do dataset limpo:")
+    print(df_limpo.head())
