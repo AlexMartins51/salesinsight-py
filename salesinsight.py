@@ -236,6 +236,36 @@ def segmentar_clientes(df):
     return clientes
 
 
+def calcular_estatisticas_numpy(df):
+    """
+    Aplica operacoes NumPy sobre a coluna receita_total.
+    Retorna um dicionario com os valores agregados calculados.
+    """
+    receitas = df["receita_total"].to_numpy()
+
+    # Agregacoes com funcoes do NumPy
+    media = np.mean(receitas)
+    mediana = np.median(receitas)
+    desvio_padrao = np.std(receitas)
+    soma = np.sum(receitas)
+
+    # Broadcasting: escalonar os valores para o intervalo 0-1
+    receitas_escalonadas = (receitas - receitas.min()) / (receitas.max() - receitas.min())
+
+    # Filtragem booleana: quantas vendas ficaram acima da media
+    vendas_acima_da_media = receitas[receitas > media]
+    qtd_acima_da_media = len(vendas_acima_da_media)
+
+    return {
+        "media": media,
+        "mediana": mediana,
+        "desvio_padrao": desvio_padrao,
+        "soma": soma,
+        "qtd_vendas_acima_da_media": qtd_acima_da_media,
+        "receitas_escalonadas_amostra": receitas_escalonadas[:5]
+    }
+
+
 if __name__ == "__main__":
     df_bruto = gerar_dataset_vendas()
     df_bruto.to_csv("vendas.csv", index=False)
@@ -266,3 +296,8 @@ if __name__ == "__main__":
     print(clientes_segmentados.sort_values("total_gasto", ascending=False).head(10))
     print("\n=== DISTRIBUICAO POR SEGMENTO ===")
     print(clientes_segmentados["segmento"].value_counts())
+
+    estatisticas_numpy = calcular_estatisticas_numpy(df_transformado)
+    print("\n=== ESTATISTICAS NUMPY (receita_total) ===")
+    for chave, valor in estatisticas_numpy.items():
+        print(f"{chave}: {valor}")
