@@ -159,3 +159,110 @@ def criar_colunas_derivadas(df):
     df["mes_nome"] = df["mes"].map(nomes_meses)
 
     # 4. Classificar a receita da linha em faixas, de forma vetorizada
+    condicoes = [
+        df["receita_total"] < 500,
+        (df["receita_total"] >= 500) & (df["receita_total"] < 5000),
+        df["receita_total"] >= 5000,
+    ]
+    faixas = ["Baixo Valor", "Medio Valor", "Alto Valor"]
+    df["faixa_receita_item"] = np.select(
+        condicoes, faixas, default="Nao Classificado"
+    )
+
+    return df
+
+
+def calcular_metricas(df):
+    """
+    Calcula as metricas agregadas do dataset.
+    Retorna um dicionario no formato {nome_da_metrica: DataFrame}.
+    Chaves: por_mes, top_produtos, por_categoria, por_regiao.
+    """
+    metricas = {}
+
+    # 1. Receita total, quantidade vendida e numero de vendas por mes
+    por_mes = df.groupby("mes").agg(
+        receita_total=("receita_total", "sum"),
+        quantidade=("quantidade", "sum"),
+        n_vendas=("id_venda", "count")
+    ).reset_index()
+    metricas["por_mes"] = por_mes
+
+    # 2. Receita total por produto (Top 5, em ordem decrescente)
+    top_produtos = df.groupby("produto").agg(
+        receita_total=("receita_total", "sum")
+    ).reset_index()
+    top_produtos = top_produtos.sort_values(
+        "receita_total", ascending=False
+    ).head(5)
+    metricas["top_produtos"] = top_produtos
+
+    # 3. Receita total por categoria
+    por_categoria = df.groupby("categoria").agg(
+        receita_total=("receita_total", "sum")
+    ).reset_index()
+    por_categoria = por_categoria.sort_values(
+        "receita_total", ascending=False
+    )
+    metricas["por_categoria"] = por_categoria
+
+    # 4. Receita total e ticket medio por regiao
+    por_regiao = df.groupby("regiao").agg(
+        receita_total=("receita_total", "sum"),
+        ticket_medio=("receita_total", "mean")
+    ).reset_index()
+    por_regiao = por_regiao.sort_values("receita_total", ascending=False)
+    metricas["por_regiao"] = por_regiao
+
+    return metricas
+
+
+def segmentar_clientes(df):
+    """
+    Agrupa por cliente, soma a receita e classifica em
+    Bronze / Prata / Ouro.
+    Retorna um DataFrame com: cliente, total_gasto, segmento.
+    """
+    clientes = df.groupby("cliente").agg(
+        total_gasto=("receita_total", "sum")
+    ).reset_index()
+
+    # Classificar em Bronze / Prata / Ouro usando lambda + apply
+    clientes["segmento"] = clientes["total_gasto"].apply(
+        lambda gasto: "Ouro" if gasto > 15000
+        else ("Prata" if gasto >= 5000 else "Bronze")
+    )
+
+    return clientes
+
+
+if __name__ == "__main__":
+    df_bruto = gerar_dataset_vendas()
+    df_bruto.to_csv("vendas.csv", index=False)
+    print(f"Dataset gerado com {len(df_bruto)} registros.")
+
+    df_bruto = inspecionar_dados(df_bruto)
+
+    df_limpo, relatorio_limpeza = limpar_dados(df_bruto)
+    print("\nPrimeiros registros do dataset limpo:")
+    print(df_limpo.head())
+
+    df_transformado = criar_colunas_derivadas(df_limpo)
+    print("\nPrimeiros registros com colunas derivadas:")
+    print(df_transformado.head())
+
+    metricas = calcular_metricas(df_transformado)
+    print("\n=== POR MES ===")
+    print(metricas["por_mes"])
+    print("\n=== TOP 5 PRODUTOS ===")
+    print(metricas["top_produtos"])
+    print("\n=== POR CATEGORIA ===")
+    print(metricas["por_categoria"])
+    print("\n=== POR REGIAO ===")
+    print(metricas["por_regiao"])
+
+    clientes_segmentados = segmentar_clientes(df_transformado)
+    print("\n=== TOP 10 CLIENTES POR GASTO TOTAL ===")
+    print(clientes_segmentados.sort_values("total_gasto", ascending=False).head(10))
+    print("\n=== DISTRIBUICAO POR SEGMENTO ===")
+    print(clientes_segmentados["segmento"].value_counts())
