@@ -172,6 +172,51 @@ def criar_colunas_derivadas(df):
     return df
 
 
+def calcular_metricas(df):
+    """
+    Calcula as metricas agregadas do dataset.
+    Retorna um dicionario no formato {nome_da_metrica: DataFrame}.
+    Chaves: por_mes, top_produtos, por_categoria, por_regiao.
+    """
+    metricas = {}
+
+    # 1. Receita total, quantidade vendida e numero de vendas por mes
+    por_mes = df.groupby("mes").agg(
+        receita_total=("receita_total", "sum"),
+        quantidade=("quantidade", "sum"),
+        n_vendas=("id_venda", "count")
+    ).reset_index()
+    metricas["por_mes"] = por_mes
+
+    # 2. Receita total por produto (Top 5, em ordem decrescente)
+    top_produtos = df.groupby("produto").agg(
+        receita_total=("receita_total", "sum")
+    ).reset_index()
+    top_produtos = top_produtos.sort_values(
+        "receita_total", ascending=False
+    ).head(5)
+    metricas["top_produtos"] = top_produtos
+
+    # 3. Receita total por categoria
+    por_categoria = df.groupby("categoria").agg(
+        receita_total=("receita_total", "sum")
+    ).reset_index()
+    por_categoria = por_categoria.sort_values(
+        "receita_total", ascending=False
+    )
+    metricas["por_categoria"] = por_categoria
+
+    # 4. Receita total e ticket medio por regiao
+    por_regiao = df.groupby("regiao").agg(
+        receita_total=("receita_total", "sum"),
+        ticket_medio=("receita_total", "mean")
+    ).reset_index()
+    por_regiao = por_regiao.sort_values("receita_total", ascending=False)
+    metricas["por_regiao"] = por_regiao
+
+    return metricas
+
+
 if __name__ == "__main__":
     df_bruto = gerar_dataset_vendas()
     df_bruto.to_csv("vendas.csv", index=False)
@@ -186,3 +231,13 @@ if __name__ == "__main__":
     df_transformado = criar_colunas_derivadas(df_limpo)
     print("\nPrimeiros registros com colunas derivadas:")
     print(df_transformado.head())
+
+    metricas = calcular_metricas(df_transformado)
+    print("\n=== POR MES ===")
+    print(metricas["por_mes"])
+    print("\n=== TOP 5 PRODUTOS ===")
+    print(metricas["top_produtos"])
+    print("\n=== POR CATEGORIA ===")
+    print(metricas["por_categoria"])
+    print("\n=== POR REGIAO ===")
+    print(metricas["por_regiao"])
