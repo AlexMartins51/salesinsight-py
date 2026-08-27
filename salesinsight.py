@@ -506,4 +506,4 @@ if __name__ == "__main__":
         analisador.metricas, analisador.clientes, analisador.estatisticas_numpy
     )
 
-    print("\n[CONCLUIDO] Fluxo finalizado com sucesso.")
+    print("\n[CONCLUIDO] Fluxo finalizado com sucesso.") 
