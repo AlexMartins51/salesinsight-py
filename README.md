@@ -92,7 +92,7 @@ salesinsight-py/
 
 ## 🎥 Vídeo de Demonstração
 
-[inserir o link do Google Drive ou do YouTube aqui]
+(https://www.youtube.com/watch?v=ITimpzqGleM)
 
 ---
 
